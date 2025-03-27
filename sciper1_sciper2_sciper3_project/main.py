@@ -39,12 +39,55 @@ def main(args):
     # Make a validation set (it can overwrite xtest, ytest)
     if not args.test:
         ### WRITE YOUR CODE HERE
+        split = int(0.8 * xtrain.shape[0])
+        xtrain, xtest = xtrain[:split], xtrain[split:]
+        ytrain, ytest = ytrain[:split], ytrain[split:]
         pass
 
     ### WRITE YOUR CODE HERE to do any other data processing
 
-    ## 3. Initialize the method you want to use.
+    # Normalization :
+    xtrain, xtest = append_bias_term(normalize_fn(xtrain, np.mean(xtrain), np.std(xtrain))), append_bias_term(normalize_fn(xtest, np.mean(xtest), np.std(xtest)))
+    print("\nClass distribution without balancing:")
+    original_counts = dict(zip(*np.unique(ytrain, return_counts=True)))
+    for cls in sorted(original_counts):
+        print(f"  Class {int(cls)}: {original_counts[cls]}")
 
+    # Balancing the data :
+    if args.balance_data:
+        print("\nBalancing training data...")
+
+        # Find class distribution
+        classes, counts = np.unique(ytrain, return_counts=True)
+        max_count = max(counts)
+
+        xtrain_balanced = []
+        ytrain_balanced = []
+
+        for cls in classes:
+            idx = np.where(ytrain == cls)[0]
+            num_to_add = max_count - len(idx)
+
+            repeated_idx = np.random.choice(idx, size=num_to_add, replace=True)
+            balanced_x = np.concatenate([xtrain[idx], xtrain[repeated_idx]])
+            balanced_y = np.concatenate([ytrain[idx], ytrain[repeated_idx]])
+
+            xtrain_balanced.append(balanced_x)
+            ytrain_balanced.append(balanced_y)
+
+        xtrain = np.concatenate(xtrain_balanced)
+        ytrain = np.concatenate(ytrain_balanced)
+
+        shuffle_idx = np.random.permutation(len(ytrain))
+        xtrain = xtrain[shuffle_idx]
+        ytrain = ytrain[shuffle_idx]
+        print("\nClass distribution after balancing:")
+        new_counts = dict(zip(*np.unique(ytrain, return_counts=True)))
+        for cls in sorted(new_counts):
+            print(f"  Class {int(cls)}: {original_counts.get(cls, 0)} → {new_counts[cls]}")
+
+
+    ## 3. Initialize the method you want to use.
     # Use NN (FOR MS2!)
     if args.method == "nn":
         raise NotImplementedError("This will be useful for MS2.")
@@ -53,8 +96,16 @@ def main(args):
     if args.method == "dummy_classifier":
         method_obj = DummyClassifier(arg1=1, arg2=2)
 
-    elif ...:  ### WRITE YOUR CODE HERE
-        pass
+    elif args.method == "logistic_regression":
+        method_obj = LogisticRegression(
+        lr=args.lr,
+        max_iters=args.max_iters
+        )
+    elif args.method == "knn":
+        method_obj = KNN(K=args.K)
+
+    elif args.method == "kmeans":
+        method_obj = KMeans()
 
     ## 4. Train and evaluate the method
     # Fit (:=train) the method on the training data for classification task
@@ -66,14 +117,15 @@ def main(args):
     # Report results: performance on train and valid/test sets
     acc = accuracy_fn(preds_train, ytrain)
     macrof1 = macrof1_fn(preds_train, ytrain)
+    print(f"\nShapes of trainning sets: xtrain.shape = {xtrain.shape} and ytrain.shape = {ytrain.shape}")
+    print(f"\nShapes of testing sets: xtest.shape = {xtest.shape} and ytest.shape = {ytest.shape}")
+
     print(f"\nTrain set: accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
 
     acc = accuracy_fn(preds, ytest)
     macrof1 = macrof1_fn(preds, ytest)
     print(f"Test set:  accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
-
     ### WRITE YOUR CODE HERE if you want to add other outputs, visualization, etc.
-
 
 if __name__ == "__main__":
     # Definition of the arguments that can be given through the command line (terminal).
@@ -123,6 +175,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--nn_batch_size", type=int, default=64, help="batch size for NN training"
     )
+    # If you want to balance the data
+    parser.add_argument(
+    "--balance_data",
+    action="store_true",
+    help="Balance the training data by oversampling underrepresented classes",
+)
 
     # "args" will keep in memory the arguments and their values,
     # which can be accessed as "args.data", for example.
