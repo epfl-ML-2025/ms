@@ -13,7 +13,7 @@ class KNN(object):
         self.k = k
         self.task_kind =task_kind
 
-    def euclidean_dist(self, example, training_examples):
+    def euclidean_dist(self, example, training_data):
         """
         Compute the Euclidean distance between a single example
         vector and all training_examples.
@@ -24,7 +24,7 @@ class KNN(object):
         Outputs:
             euclidean distances: shape (N,)
         """
-        distance = np.sqrt(np.sum((training_examples - example)**2, axis=1))
+        distance = np.sqrt(np.sum((training_data - example)**2, axis=1))
         return distance
 
     def find_k_nearest_neighbors(self, distances):
@@ -49,10 +49,10 @@ class KNN(object):
         Outputs:
             most frequent label
         """
-        label = np.argmax(np.bincount(neighbor_labels))
+        label = np.argmax(np.bincount(neighbor_labels.astype(int)))
         return label
 
-    def kNN_one_example(self, unlabeled_example, training_features, training_labels):
+    def kNN_one_example(self, unlabeled_example, training_data, training_labels):
         """
         Returns the label of a single unlabelled example.
 
@@ -63,21 +63,18 @@ class KNN(object):
         Outputs:
             predicted label
         """
-        # Compute distances
-        distances = self.euclidean_dist(unlabeled_example, training_features)
-
-        # Find neighbors
+        
+        distances = self.euclidean_dist(unlabeled_example, training_data)
+        
         nn_indices = self.find_k_nearest_neighbors(distances)
-
-        # Get neighbors' labels
+        
         neighbor_labels = training_labels[nn_indices]
-
-        # Pick the most common
+        
         best_label = self.predict_label(neighbor_labels)
 
         return best_label
 
-    def kNN(self, unlabeled, training_features, training_labels):
+    def kNN(self, unlabeled, training_data, training_labels):
         """
         Return the labels vector for all unlabeled datapoints.
 
@@ -92,7 +89,7 @@ class KNN(object):
             func1d=self.kNN_one_example,
             axis=1,
             arr=unlabeled,
-            training_features=training_features,
+            training_data=training_data,
             training_labels=training_labels
         )
 
