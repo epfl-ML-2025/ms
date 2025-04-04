@@ -105,7 +105,10 @@ def main(args):
         method_obj = KNN(K=args.K)
 
     elif args.method == "kmeans":
-        method_obj = KMeans()
+        method_obj = KMeans(
+        K=args.K,  # Nombre de clusters
+        max_iters=args.max_iters,  # Nombre d'itérations maximum
+        )
 
     ## 4. Train and evaluate the method
     # Fit (:=train) the method on the training data for classification task
