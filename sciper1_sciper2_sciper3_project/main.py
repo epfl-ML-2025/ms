@@ -1,6 +1,8 @@
 import argparse
 
 import numpy as np
+import matplotlib.pyplot as plt
+import time
 
 from src.data import load_data
 from src.methods.dummy_methods import DummyClassifier
@@ -34,6 +36,7 @@ def main(args):
     elif args.data_type == "original":
         data_dir = os.path.join(args.data_path, "dog-small-64")
         xtrain, xtest, ytrain, ytest = load_data(data_dir)
+
 
     ## 2. Then we must prepare it. This is where you can create a validation set, normalize, add bias, etc.
     # Make a validation set (it can overwrite xtest, ytest)
@@ -102,8 +105,7 @@ def main(args):
         max_iters=args.max_iters
         )
     elif args.method == "knn":
-        method_obj = KNN(K=args.K)
-
+        method_obj = KNN(k=args.K)
     elif args.method == "kmeans":
         method_obj = KMeans(
         K=args.K,  # Nombre de clusters
@@ -112,10 +114,16 @@ def main(args):
 
     ## 4. Train and evaluate the method
     # Fit (:=train) the method on the training data for classification task
+    s1 = time.time()
     preds_train = method_obj.fit(xtrain, ytrain)
+    s2 = time.time()
+    train_time = s2 - s1
 
     # Predict on unseen data
+    s1 = time.time()
     preds = method_obj.predict(xtest)
+    s2 = time.time()
+    test_time = s2 - s1
 
     # Report results: performance on train and valid/test sets
     acc = accuracy_fn(preds_train, ytrain)
@@ -129,6 +137,9 @@ def main(args):
     macrof1 = macrof1_fn(preds, ytest)
     print(f"Test set:  accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
     ### WRITE YOUR CODE HERE if you want to add other outputs, visualization, etc.
+    print("Training took:", train_time, "seconds")
+    print("Prediction took:", test_time, "seconds")
+
 
 if __name__ == "__main__":
     # Definition of the arguments that can be given through the command line (terminal).
