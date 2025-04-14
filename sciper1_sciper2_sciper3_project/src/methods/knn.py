@@ -43,14 +43,23 @@ class KNN(object):
     def predict_label(self, neighbor_labels):
         """
         Return the most frequent label in the neighbors.
+        In case of a tie, return the label of the closest neighbor among the tied labels.
 
         Inputs:
             neighbor_labels: shape (N,)
         Outputs:
             most frequent label
         """
-        label = np.argmax(np.bincount(neighbor_labels.astype(int)))
-        return label
+        counts = np.bincount(neighbor_labels.astype(int))
+        max_count = np.max(counts)
+        best_labels = np.where(counts == max_count)[0]
+
+        if len(best_labels) == 1:
+            return best_labels[0]
+        else:
+            for label in neighbor_labels:
+                if label in best_labels:
+                    return label
 
     def kNN_one_example(self, unlabeled_example, training_data, training_labels):
         """
@@ -69,7 +78,7 @@ class KNN(object):
         nn_indices = self.find_k_nearest_neighbors(distances)
         
         neighbor_labels = training_labels[nn_indices]
-        
+
         best_label = self.predict_label(neighbor_labels)
 
         return best_label
@@ -92,7 +101,6 @@ class KNN(object):
             training_data=training_data,
             training_labels=training_labels
         )
-
 
     def fit(self, training_data, training_labels):
         """
