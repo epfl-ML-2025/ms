@@ -169,7 +169,7 @@ class KMeans(object):
         return new_labels
 
 
-    def __init__(self, K, max_iters=500):
+    def __init__(self, K=5, max_iters=500):
         """
         Call set_arguments function of this class.
         """
