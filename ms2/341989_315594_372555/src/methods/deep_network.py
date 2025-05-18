@@ -30,7 +30,13 @@ class MLP(nn.Module):
         #### WRITE YOUR CODE HERE!
         ###
         ##
+        self.fc1 = nn.Linear(input_size, 512)  # First hidden layer
+        self.fc2 = nn.Linear(512, 256)         # Second hidden layer
+        self.fc3 = nn.Linear(256, n_classes)   # Output layer
 
+        # Dropout for regularization
+        self.dropout = nn.Dropout(p=0.5)
+        self.log_softmax = nn.LogSoftmax(dim=1)
     def forward(self, x):
         """
         Predict the class of a batch of samples with the model.
@@ -46,6 +52,14 @@ class MLP(nn.Module):
         #### WRITE YOUR CODE HERE!
         ###
         ##
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = F.relu(self.fc2(x))
+        x = self.dropout(x)
+
+        logits = self.fc3(x)        # raw scores
+        preds  = self.log_softmax(logits)  # log-probabilities
+
         return preds
 
 
@@ -73,7 +87,29 @@ class CNN(nn.Module):
         #### WRITE YOUR CODE HERE!
         ###
         ##
+                # --- Feature extractor ---
+        self.features = nn.Sequential(
+            # Block 1
+            nn.Conv2d(input_channels, 32, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),                 # H,W  →  H/2 , W/2
 
+            # Block 2
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),                 # H,W  →  H/4 , W/4
+
+            # Block 3
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+
+            # Global pooling → fixed-size (1 × 1) spatial map
+            nn.AdaptiveAvgPool2d((1, 1))
+        )
+
+        # --- Classifier ---
+        self.dropout = nn.Dropout(0.5)
+        self.classifier = nn.Linear(128, n_classes)
     def forward(self, x):
         """
         Predict the class of a batch of samples with the model.
@@ -89,6 +125,10 @@ class CNN(nn.Module):
         #### WRITE YOUR CODE HERE!
         ###
         ##
+        x = self.features(x)          # (N, 128, 1, 1)
+        x = torch.flatten(x, 1)       # (N, 128)
+        x = self.dropout(x)
+        preds = self.classifier(x)    # logits
         return preds
 
 
@@ -114,8 +154,8 @@ class Trainer(object):
         self.model = model
         self.batch_size = batch_size
 
-        self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = ...  ### WRITE YOUR CODE HERE
+        self.criterion = nn.CrossEntropyLoss()  # Loss function for classification
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)  # Adam optimizer
 
     def train_all(self, dataloader):
         """
@@ -128,10 +168,9 @@ class Trainer(object):
             dataloader (DataLoader): dataloader for training data
         """
         for ep in range(self.epochs):
-            self.train_one_epoch(dataloader)
-
+            self.train_one_epoch(dataloader, ep)
             ### WRITE YOUR CODE HERE if you want to do add something else at each epoch
-
+            print(f"Epoch {ep+1}/{self.epochs} completed.")
     def train_one_epoch(self, dataloader, ep):
         """
         Train the model for ONE epoch.
@@ -147,6 +186,34 @@ class Trainer(object):
         #### WRITE YOUR CODE HERE!
         ###
         ##
+        self.model.train()  # Set the model to training mode
+        running_loss = 0.0
+        correct_preds = 0
+        total_preds = 0
+
+        for data, target in dataloader:
+            # Zero the gradients before backward pass
+            self.optimizer.zero_grad()
+
+            # Forward pass
+            output = self.model(data)
+
+            # Compute loss
+            loss = self.criterion(output, target)
+
+            # Backward pass and optimization
+            loss.backward()
+            self.optimizer.step()
+
+            # Track the loss and accuracy
+            running_loss += loss.item()
+            _, predicted = torch.max(output, 1)
+            correct_preds += (predicted == target).sum().item()
+            total_preds += target.size(0)
+
+        avg_loss = running_loss / len(dataloader)
+        accuracy = 100 * correct_preds / total_preds
+        print(f"Epoch {ep+1} | Loss: {avg_loss:.4f} | Accuracy: {accuracy:.2f}%")
 
     def predict_torch(self, dataloader):
         """
@@ -170,7 +237,25 @@ class Trainer(object):
         #### WRITE YOUR CODE HERE!
         ###
         ##
-        return pred_labels
+        self.model.eval()  # Set the model to evaluation mode
+        all_preds = []
+
+        with torch.no_grad():
+            for data in dataloader:
+                # If data is a tuple (input, labels), use only input
+                data = data[0]  # Use only the input (first element)
+
+                # Ensure data is a tensor (if not already a tensor)
+                data = data.float()  # Ensure the data is of type float32
+
+                # Forward pass through the model
+                output = self.model(data)
+
+                # Get the predicted class index (for each sample)
+                _, preds = torch.max(output, 1)
+                all_preds.append(preds)
+
+        return torch.cat(all_preds, dim=0)
 
     def fit(self, training_data, training_labels):
         """
@@ -186,8 +271,8 @@ class Trainer(object):
         """
 
         # First, prepare data for pytorch
-        train_dataset = TensorDataset(torch.from_numpy(training_data).float(),
-                                      torch.from_numpy(training_labels))
+        train_dataset = TensorDataset(torch.tensor(training_data).float(),
+                                      torch.tensor(training_labels).long())
         train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
 
         self.train_all(train_dataloader)
@@ -206,7 +291,7 @@ class Trainer(object):
             pred_labels (array): labels of shape (N,)
         """
         # First, prepare data for pytorch
-        test_dataset = TensorDataset(torch.from_numpy(test_data).float())
+        test_dataset = TensorDataset(torch.tensor(test_data).float())
         test_dataloader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
 
         pred_labels = self.predict_torch(test_dataloader)

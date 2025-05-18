@@ -1,12 +1,12 @@
 import argparse
-
+import time
 import numpy as np
 from torchinfo import summary
 
 from src.data import load_data
 from src.methods.deep_network import MLP, CNN, Trainer
 from src.utils import normalize_fn, append_bias_term, accuracy_fn, macrof1_fn, get_n_classes
-
+from src.methods.dummy_methods import DummyClassifier
 
 def main(args):
     """
@@ -21,15 +21,17 @@ def main(args):
     xtrain, xtest, ytrain, y_test = load_data()
     xtrain = xtrain.reshape(xtrain.shape[0], -1)
     xtest = xtest.reshape(xtest.shape[0], -1)
-
     ## 2. Then we must prepare it. This is were you can create a validation set,
     #  normalize, add bias, etc.
-
+    xtrain = normalize_fn(xtrain, means=np.mean(xtest, axis=0), stds=np.std(xtrain, axis=0))
+    xtest = normalize_fn(xtest, means=np.mean(xtest, axis=0), stds=np.std(xtest, axis=0))
     # Make a validation set
     if not args.test:
     ### WRITE YOUR CODE HERE
-
-
+        validation_split = 0.1  # Example: 10% of the data used for validation
+        validation_size = int(xtrain.shape[0] * validation_split)
+        xval, yval = xtrain[:validation_size], ytrain[:validation_size]
+        xtrain, ytrain = xtrain[validation_size:], ytrain[validation_size:]
     ### WRITE YOUR CODE HERE to do any other data processing
 
 
@@ -41,7 +43,13 @@ def main(args):
     # Note: you might need to reshape the data depending on the network you use!
     n_classes = get_n_classes(ytrain)
     if args.nn_type == "mlp":
-        model = ... ### WRITE YOUR CODE HERE
+        model = MLP(input_size=xtrain.shape[1], n_classes=n_classes)  # Instantiate MLP
+    elif args.nn_type == "cnn":
+        model = CNN(input_channels=3, n_classes=n_classes)
+        xtrain = xtrain.reshape(-1, 3, 28, 28)
+        xtest  = xtest .reshape(-1, 3, 28, 28)
+    else:
+        model = DummyClassifier(0)
 
     summary(model)
 
@@ -52,7 +60,10 @@ def main(args):
     ## 4. Train and evaluate the method
 
     # Fit (:=train) the method on the training data
+    start_time = time.perf_counter()  # Start timing
     preds_train = method_obj.fit(xtrain, ytrain)
+    training_time = time.perf_counter() - start_time  # End timing
+    print(f"\nTraining completed in {training_time:.2f} seconds.")
 
     # Predict on unseen data
     preds = method_obj.predict(xtest)
@@ -65,8 +76,8 @@ def main(args):
 
     ## As there are no test dataset labels, check your model accuracy on validation dataset.
     # You can check your model performance on test set by submitting your test set predictions on the AIcrowd competition.
-    acc = accuracy_fn(preds, xtest)
-    macrof1 = macrof1_fn(preds, xtest)
+    acc = accuracy_fn(preds, y_test)
+    macrof1 = macrof1_fn(preds, y_test)
     print(f"Validation set:  accuracy = {acc:.3f}% - F1-score = {macrof1:.6f}")
 
 
