@@ -21,6 +21,8 @@ def main(args):
     xtrain, xtest, ytrain, y_test = load_data()
     xtrain = xtrain.reshape(xtrain.shape[0], -1)
     xtest = xtest.reshape(xtest.shape[0], -1)
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"📍 Appareil utilisé : {device}")
     ## 2. Then we must prepare it. This is were you can create a validation set,
     #  normalize, add bias, etc.
     xtrain = normalize_fn(xtrain, means=np.mean(xtest, axis=0), stds=np.std(xtrain, axis=0))
@@ -54,7 +56,8 @@ def main(args):
     summary(model)
 
     # Trainer object
-    method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size)
+    model = model.to(device) 
+    method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size, device=device)
 
 
     ## 4. Train and evaluate the method
@@ -107,5 +110,8 @@ if __name__ == '__main__':
 
     # "args" will keep in memory the arguments and their values,
     # which can be accessed as "args.data", for example.
+    import torch
+
     args = parser.parse_args()
+    device = torch.device(args.device)
     main(args)
