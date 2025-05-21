@@ -57,7 +57,7 @@ def main(args):
     summary(model)
 
     # Trainer object
-    model = model.to(args.device) 
+    
     method_obj = Trainer(model, lr=args.lr, epochs=args.max_iters, batch_size=args.nn_batch_size, device=args.device)
 
 
