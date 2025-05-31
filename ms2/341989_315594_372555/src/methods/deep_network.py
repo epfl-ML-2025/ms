@@ -139,7 +139,7 @@ class Trainer(object):
     It will also serve as an interface between numpy and pytorch.
     """
 
-    def __init__(self, model, lr, epochs, batch_size):
+    def __init__(self, model, lr, epochs, batch_size, device):
         """
         Initialize the trainer object for a given model.
 
@@ -149,9 +149,10 @@ class Trainer(object):
             epochs (int): number of epochs of training
             batch_size (int): number of data points in each batch
         """
+        self.device = device
         self.lr = lr
         self.epochs = epochs
-        self.model = model
+        self.model = model.to(self.device)
         self.batch_size = batch_size
 
         self.criterion = nn.CrossEntropyLoss()  # Loss function for classification
@@ -192,6 +193,9 @@ class Trainer(object):
         total_preds = 0
 
         for data, target in dataloader:
+
+            data = data.to(self.device)
+            target = target.to(self.device)
             # Zero the gradients before backward pass
             self.optimizer.zero_grad()
 
@@ -242,11 +246,13 @@ class Trainer(object):
 
         with torch.no_grad():
             for data in dataloader:
+                data = data[0].to(self.device).float()
+
                 # If data is a tuple (input, labels), use only input
-                data = data[0]  # Use only the input (first element)
+                  # Use only the input (first element)
 
                 # Ensure data is a tensor (if not already a tensor)
-                data = data.float()  # Ensure the data is of type float32
+                  # Ensure the data is of type float32
 
                 # Forward pass through the model
                 output = self.model(data)
